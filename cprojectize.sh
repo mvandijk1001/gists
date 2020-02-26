@@ -2,6 +2,8 @@
 
 set -e
 
+rm -f tags cscope.*
+
 echo "Building ctags index..."
 ctags -R
 
