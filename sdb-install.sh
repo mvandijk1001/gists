@@ -25,6 +25,8 @@ fi
 ((${HELP})) && echo "SDBDIR (${SDBDIR}) sequoiadb installation directory"
 : "${DATADIR:=/opt/sdb}"
 ((${HELP})) && echo "DATADIR (${DATADIR}) database storage directory"
+: "${GLOBTS:=1}"
+((${HELP})) && echo "GLOBTS (${GLOBTS}) enable global transactions"
 : "${PORT_OMA:=17643}"
 ((${HELP})) && echo "PORT_OMA (${PORT_OMA}) port for temporary cluster management object"
 : "${PORT_COO:=50000}"
@@ -65,7 +67,8 @@ echo "$*";
 ((${NUM_DATA_RG_NODES}>0))
 
 # Default sdb configuration
-NODECONFIG="{diaglevel:3, plancachelevel:3, clustername:'xxx', businessname:'yyy'}"
+((${GLOBTS})) && GLOBTSCONFIG="transactionon:true, mvccon:true, globtranson:true, transisolation:3,"
+NODECONFIG="{${GLOBTSCONFIG} diaglevel:3, plancachelevel:3, clustername:'xxx', businessname:'yyy'}"
 HOSTNAME=`hostname`
 DB_VAR="db"
 
@@ -85,10 +88,14 @@ requireFile "sdbstart"
 requireFile "sdbstop"
 requireFile "sdbcmart"
 requireFile "sdbcmtop"
+requireFile "stp"
 
 echo "Stopping any existing services"
 ${BIN}/sdbcmtop
 ${BIN}/sdbstop --all
+pkill sdbbp || true
+pkill stp || true
+sleep 1
 
 echo "Cleaning up any old configuration files"
 if test -d "${CONF}/local"; then
@@ -101,9 +108,6 @@ if test -d "${DATADIR}"; then
   rm -rf ${DATADIR}/*
 fi
 mkdir -p ${DATADIR}
-
-echo "Stopping sdbbp"
-pkill sdbbp || true
 
 ((${CLEANUP})) && echo "Cleanup complete" && exit
 
@@ -118,6 +122,10 @@ ${BIN}/sdb -s "${VAR}.createNode('${HOSTNAME}', '${PORT}', '${DATADIR}/${PORT}',
 # Start the cluster manager
 echo "Starting sdbcm"
 ${BIN}/sdbcmart -i
+
+# Start the standard time protocol daemon
+echo "Starting stp as a daemon"
+${BIN}/stp --daemon
 
 echo "Starting the temporary cluster management object (${PORT_OMA})"
 ${BIN}/sdb -s \
