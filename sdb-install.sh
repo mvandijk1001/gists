@@ -5,6 +5,45 @@ set -e
 # Is DEBUG on?
 ((${DEBUG})) && set -x
 
+HELP=0
+if [[ "$1" == "--help" || $1 == "-h" ]]; then
+  HELP=1
+  SCRIPT=$(basename $0)
+  echo "Usage: ${SCRIPT}"
+  echo "Deploy a clean SequoiaDB cluster. Kill any existing sdb processes and"
+  echo "remove all existing configuration and data files."
+  echo ""
+  echo "Options are passed in via environment variables."
+fi
+
+# Env vars:
+: "${DEBUG:=0}"
+((${HELP})) && echo "DEBUG (${DEBUG}): run verbosely"
+: "${CLEANUP:=0}"
+((${HELP})) && echo "CLEANUP (${CLEANUP}) only stop all processes and remove config and data"
+: "${SDBDIR:=${HOME}/src/sequoiadb}"
+((${HELP})) && echo "SDBDIR (${SDBDIR}) sequoiadb installation directory"
+: "${DATADIR:=/opt/sdb}"
+((${HELP})) && echo "DATADIR (${DATADIR}) database storage directory"
+: "${PORT_OMA:=17643}"
+((${HELP})) && echo "PORT_OMA (${PORT_OMA}) port for temporary cluster management object"
+: "${PORT_COO:=50000}"
+((${HELP})) && echo "PORT_COO (${PORT_COO}) port for the first coordinator (each node +10)"
+: "${NUM_COO:=1}"
+((${HELP})) && echo "NUM_COO (${NUM_COO}) number of nodes in coordinator replica group"
+: "${PORT_CAT:=11800}"
+((${HELP})) && echo "PORT_CAT (${PORT_CAT}) port for the first catalog (each node +10)"
+: "${NUM_CAT:=1}"
+((${HELP})) && echo "NUM_CAT (${NUM_CAT}) number of nodes in catalog replica group"
+: "${PORT_DATA:=20000}"
+((${HELP})) && echo "PORT_DATA (${PORT_DATA}) port for data replica group 1 node 1 (each group +100) (each node +10)"
+: "${NUM_DATA_RG:=2}"
+((${HELP})) && echo "NUM_DATA_RG (${NUM_DATA_RG}) number of data replica groups"
+: "${NUM_DATA_RG_NODES:=1}"
+((${HELP})) && echo "NUM_DATA_RG_NODES (${NUM_DATA_RG_NODES}) number of nodes in each data replica group"
+
+((${HELP})) && exit
+
 function errReport() {
 echo "Error on line $(caller)" >&2
 }
@@ -18,32 +57,6 @@ local IFS="$1"
 shift
 echo "$*";
 }
-
-# Env vars:
-# DEBUG    : run verbosely
-: "${DEBUG:=0}"
-# CLEANUP  : only stop all processes and remove config and data
-: "${CLEANUP:=0}"
-# SDBDIR   : sequoiadb installation directory
-: "${SDBDIR:=${HOME}/src/sequoiadb}"
-# DATADIR  : database storage directory
-: "${DATADIR:=/opt/sdb}"
-# PORT_OMA : port for temporary cluster management object
-: "${PORT_OMA:=17643}"
-# PORT_COO : port for the first coordinator (each node +10)
-: "${PORT_COO:=50000}"
-# NUM_COO  : number of nodes in coordinator replica group
-: "${NUM_COO:=3}"
-# PORT_CAT : port for the first catalog (each node +10)
-: "${PORT_CAT:=11800}"
-# NUM_CAT  : number of nodes in catalog replica group
-: "${NUM_CAT:=3}"
-# PORT_DB  : port for data replica group 1 node 1 (each group +100) (each node +10)
-: "${PORT_DATA:=20000}"
-# NUM_DATA_RG : number of data replica groups
-: "${NUM_DATA_RG:=3}"
-# NUM_DATA_RG_NODES : number of nodes in each data replica group
-: "${NUM_DATA_RG_NODES:=3}"
 
 # Check vars
 ((${NUM_COO}>0))
@@ -67,6 +80,7 @@ local FILE="${BIN}/${1}"
 echo "Checking for ${FILE}"
 test -f "${FILE}"
 }
+requireFile "sdb"
 requireFile "sdbstart"
 requireFile "sdbstop"
 requireFile "sdbcmart"
